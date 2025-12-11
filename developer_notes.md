@@ -1,6 +1,19 @@
 # Journal
+
+## 2025 12 11
+Added input checks for subpop and metapop models
+
 ## 2025 11 17 - Adding ghost compartments
 Updated website notation and made code updates in a lot of places.
+We check that humidity, vaccination, contact matrix, and initial compartment values are non-negative. All values at zero are possible but wouldn't make sense.
+For transition rates we need strictly positive values.
+For vaccination rates we check whether cumulative vaccination rates in each age-risk group are not exceeding 100% in any 365-day period. This only issues a warning.
+The mobility matrix (or travel_proportions) should have rows that sum to 1: this ensures people either travel to another subpopulation or stay in their home location.
+
+A new parameter called use_deterministic_softplus is added to the simulation settings. If the object oriented model is run with deterministic transitions this can be used to prevent softplus values instead of zeros in compartments, which leads to strange behaviors when epidemics occur in populations without any exposure.
+
+Small fixes were made to the travel model equations in the file `flu_travel_functions.py`.
+
 
 # For future developers (from LP)
 

@@ -559,8 +559,8 @@ class MobilityModifier(clt.Schedule):
             ii) a day of week schedule that must have columns "day_of_week"
             and "mobility_modifier" where "day_of_week" entries are
             strings with values from Monday to Sunday (case doesn't matter).
-            The code will automatically which format is being used by
-            looking at the column name.
+            The code will automatically detect which format is being used
+            by looking at the column name.
             In both cases, "mobility_modifier" entries are
             JSON-encoded A x R arrays representing the proportion of
             time spent away from home by age-risk group on those days.
@@ -575,7 +575,8 @@ class MobilityModifier(clt.Schedule):
             init_val (Optional[np.ndarray | float]):
                 starting value(s) at the beginning of the simulation
             timeseries_df (Optional[pd.DataFrame] = None):
-                must have columns "date" and "mobility_modifier" --
+                must have columns ("date" or "day_of_week") 
+                and "mobility_modifier" --
                 see class docstring for format details.
         """
 
@@ -597,8 +598,10 @@ class MobilityModifier(clt.Schedule):
             Converts mobility_modifier column from
             a string representation of a list of lists
             (each day) of format AxR into np.ndarray.
+            Check whether day_of_week schedule is being used.
             Make days of week lower case if being used.
         """
+        
         if 'day_of_week' in self.timeseries_df.columns:
             self.is_day_of_week_schedule = True
 
@@ -1583,10 +1586,6 @@ class FluMetapopModel(clt.MetapopModel, ABC):
         # because now `flu_contact_matrix` has two values: "is_school_day"
         # and "is_work_day" -- other schedules' dataframes only have one
         # relevant column value rather than two
-        # mobility_modifier must be last since we use the max date from
-        # the previous schedules to create the time series for it
-        # if it's using a day_of_week schedule
-        ts_end_date_max = datetime.datetime.strptime('1900-01-01', "%Y-%m-%d")
         for item in [("absolute_humidity", "absolute_humidity"),
                      ("flu_contact_matrix", "is_school_day"),
                      ("flu_contact_matrix", "is_work_day"),
@@ -1665,11 +1664,6 @@ class FluMetapopModel(clt.MetapopModel, ABC):
         #   with respect to dynamic variables that are discontinuous
         #   (e.g. a 0-1 intervention) -- so we cannot optimize discontinuous
         #   dynamic variables.
-
-        # Ensure schedules are synced to state before creating state tensors
-        # (this is needed for schedule-based state variables like mobility_modifier)
-        for subpop_model in self._subpop_models_ordered.values():
-            subpop_model.prepare_daily_state()
 
         self.update_full_metapop_state_tensors()
         self.update_full_metapop_params_tensors()

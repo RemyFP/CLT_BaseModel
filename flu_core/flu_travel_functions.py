@@ -90,7 +90,7 @@ def compute_effective_pop_LA(state: FluTravelStateTensors,
     traveling_residents_LAR = precomputed.sum_residents_nonlocal_travel_prop[:, None, None] * \
                               active_pop_LAR
 
-    mobility_modifier = state.mobility_modifier[0, :, 0]
+    mobility_modifier = state.mobility_modifier[:, :, 0]
 
     effective_pop_LA = precomputed.total_pop_LA + mobility_modifier * \
                        torch.sum(outside_visitors_LAR - traveling_residents_LAR, dim=2)

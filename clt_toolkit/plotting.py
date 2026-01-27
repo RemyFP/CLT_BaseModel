@@ -261,6 +261,49 @@ def plot_metapop_total_infected(metapop_model: MetapopModel,
     # Iterate over subpop models and plot
     for ix, (subpop_name, subpop_model) in enumerate(metapop_model.subpop_models.items()):
         plot_subpop_total_infected(subpop_model, axes[ix])
+        
+@plot_subpop_decorator
+def plot_subpop_total_deaths(subpop_model: SubpopModel,
+                                      ax: matplotlib.axes.Axes = None):
+    """
+    Plots data for a single subpopulation model on the given axis.
+
+    Args:
+        subpop_model (SubpopModel):
+            Subpopulation model containing compartments.
+        ax (matplotlib.axes.Axes):
+            Matplotlib axis to plot on.
+    """
+
+    if "D" in subpop_model.compartments.keys():
+        deaths = [np.sum(age_risk_group_entry)
+                  for age_risk_group_entry
+                  in subpop_model.compartments.D.history_vals_list]
+
+        ax.plot(deaths, label="D", alpha=0.6)
+
+    ax.set_title(f"{subpop_model.name}")
+    ax.set_xlabel("Days")
+    ax.set_ylabel("Number of individuals")
+    ax.legend()
+
+
+@plot_metapop_decorator
+def plot_metapop_total_deaths(metapop_model: MetapopModel,
+                                       axes: matplotlib.axes.Axes):
+    """
+    Plots the total deaths data for a metapopulation model.
+
+    Args:
+        metapop_model (MetapopModel):
+            Metapopulation model containing compartments.
+        axes (matplotlib.axes.Axes):
+            Matplotlib axes to plot on.
+    """
+
+    # Iterate over subpop models and plot
+    for ix, (subpop_name, subpop_model) in enumerate(metapop_model.subpop_models.items()):
+        plot_subpop_total_deaths(subpop_model, axes[ix])
 
 @plot_subpop_decorator
 def plot_subpop_basic_compartment_history(subpop_model: SubpopModel,

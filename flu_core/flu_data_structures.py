@@ -621,7 +621,7 @@ class FluFullMetapopParamsTensors(FluTravelParamsTensors):
     vax_induced_inf_risk_reduce: Optional[torch.Tensor] = None
     vax_induced_hosp_risk_reduce: Optional[torch.Tensor] = None
     vax_induced_death_risk_reduce: Optional[torch.Tensor] = None
-    vax_protection_delay_days: Optional[int] = 0
+    vax_protection_delay_days: Optional[torch.Tensor] = 0
     vax_immunity_reset_date_mm_dd: Optional[str] = 0
 
     R_to_S_rate: Optional[torch.Tensor] = None

@@ -463,11 +463,14 @@ class VaxInducedImmunity(clt.EpiMetric):
                  params: FluSubpopParams,
                  schedules: clt.Schedule,
                  timesteps_per_day: int):
-        super().__init__(init_val)
-        self.adjust_initial_value(
-            current_real_date, params, schedules, timesteps_per_day)
+        
+        adjusted_init_val = self.adjust_initial_value(
+            init_val, current_real_date, params, schedules, timesteps_per_day)
+        super().__init__(adjusted_init_val)
+        
         
     def adjust_initial_value(self,
+                             init_val: np.ndarray,
                              current_real_date: datetime.date,
                              params: FluSubpopParams,
                              schedules: clt.Schedule,
@@ -480,6 +483,9 @@ class VaxInducedImmunity(clt.EpiMetric):
         vaccines administered after the reset date (and before the simulation
         start date, accounting for protection delay) are counted with waning.
         """
+        
+        self.original_init_val = copy.deepcopy(init_val)
+        self.adjusted_init_val = copy.deepcopy(init_val)
         
         if params.vax_immunity_reset_date_mm_dd is not None:
             # Print warning to mention that initial value is being adjusted
@@ -517,7 +523,9 @@ class VaxInducedImmunity(clt.EpiMetric):
                     MV_adjustment += row["daily_vaccines"] / timesteps_per_day - \
                         params.vax_induced_immune_wane * MV_adjustment / timesteps_per_day
             
-            self.current_val = self.current_val + MV_adjustment
+            self.adjusted_init_val = self.adjusted_init_val + MV_adjustment
+            
+        return self.adjusted_init_val
             
     def get_change_in_current_val(self,
                                   state: FluSubpopState,
@@ -531,7 +539,7 @@ class VaxInducedImmunity(clt.EpiMetric):
         # Note: `state.daily_vaccines` (based on the value of the `DailyVaccines`
         #   `Schedule` is NOT divided by the number of timesteps -- so we need to
         #   do this division in the equation here.
-
+        
         return state.daily_vaccines / (num_timesteps) - \
                params.vax_induced_immune_wane * state.MV / num_timesteps
 

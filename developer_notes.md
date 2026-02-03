@@ -1,5 +1,17 @@
 # Journal
 
+## 2026 01 29
+- Added vaccine immunity reset functionality to model seasonal vaccine immunity patterns. A new parameter `vax_immunity_reset_date_mm_dd` is added to `FluSubpopParams` in `flu_data_structures.py`. When set (format: "MM_DD", e.g., "08_01" for August 1st), the vaccine-induced immunity (MV) resets to zero on this date each year to represent the start of a new vaccine season.
+- Added `start_real_date` parameter to `FluSubpopParams` in `flu_data_structures.py` to track the real-world date corresponding to the simulation start, enabling date-based reset functionality.
+- Modified the `VaxInducedImmunity` class in `flu_components.py` to:
+  - Adjust the initial vaccine-induced immunity value at simulation start by accounting only for vaccines administered after the most recent reset date (before simulation start), with appropriate waning applied. This ensures vaccines from previous seasons are not counted. The initial value variable `init_val` saved in the object's instance needs to updated so that even when we the simulation is reset the adjustment is taken into account.
+  - Check each day whether the current date matches the reset date and reset MV to zero if it does.
+- Added `prepare_daily_state()` method override in `FluSubpopModel` to check for vaccine immunity resets at the beginning of each simulated day.
+- Added `check_and_apply_MV_reset()` function in `flu_torch_det_components.py` to support vaccine immunity resets in deterministic simulations.
+- Enhanced metapopulation model in `flu_components.py` to properly handle non-numerical parameters (strings and datetime objects) across subpopulations, ensuring consistency.
+- The reset functionality works in conjunction with `vax_protection_delay_days` to properly account for the delay between vaccination and effective protection.
+- Updated example parameter files ([common_subpop_params.json](flu_instances/austin_input_files/common_subpop_params.json), test files) and notebooks to demonstrate the new reset functionality.
+
 ## 2026 01 21
 - Added a new parameter `vax_protection_delay_days` to model the delay between vaccine administration and protection effectiveness. The parameter is added to `FluSubpopParams` in `flu_data_structures.py` and used in the `DailyVaccines` class in `flu_components.py`. The vaccine timeseries is shifted forward by the specified number of days, with zero-valued entries backfilled at the beginning to preserve the original start date.
 

@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import pandas as pd
+import datetime
 
 from typing import Optional
 from dataclasses import dataclass, fields, field
@@ -136,6 +137,9 @@ class FluSubpopParams(clt.SubpopParams):
             number of age groups.
         num_risk_groups (positive int):
             number of risk groups.
+        start_real_date (datetime.date):
+            real-world date that corresponds to start sof
+            simulation.
         beta_baseline (positive float): transmission rate.
         total_pop_age_risk (np.ndarray of positive ints):
             total number in population, summed across all
@@ -173,6 +177,14 @@ class FluSubpopParams(clt.SubpopParams):
         vax_induced_death_risk_reduce (positive float):
             reduction in risk of death
             after getting vaccinated
+        vax_protection_delay_days: (positive int):
+            number of days after vaccination until vaccine
+            protection is effective.
+        vax_immunity_reset_date_mm_dd: (str or None):
+            date (in "mm_dd" format) each year when vaccine
+            immunity resets, and date from which to start
+            calculating contribution of vaccines to 
+            vaccine-induced immunity.
         R_to_S_rate (positive float):
             rate at which people in R move to S.
         E_to_I_rate (positive float):
@@ -235,6 +247,7 @@ class FluSubpopParams(clt.SubpopParams):
 
     num_age_groups: Optional[int] = None
     num_risk_groups: Optional[int] = None
+    start_real_date: Optional[datetime.date] = None
     beta_baseline: Optional[float] = None
     total_pop_age_risk: Optional[np.ndarray] = None
     humidity_impact: Optional[float] = None
@@ -494,6 +507,10 @@ class FluTravelParamsTensors:
                     raise Exception(str(name) + error_str)
                 else:
                     setattr(self, name, value.view(1, A, A).expand(L, A, A))
+            
+            # string parameters
+            elif isinstance(value, str) or isinstance(value, datetime.date):
+                continue
 
             # If scalar or already L x A x R, do not need to adjust
             #   dimensions
@@ -587,6 +604,8 @@ class FluFullMetapopParamsTensors(FluTravelParamsTensors):
     tensors or size 0 tensors.
     """
 
+    # non_numerical_params: Optional[dict] = None
+    start_real_date: Optional[datetime.date] = None
     beta_baseline: Optional[torch.Tensor] = None
     total_pop_age_risk: Optional[torch.Tensor] = None
     humidity_impact: Optional[torch.Tensor] = None
@@ -601,6 +620,8 @@ class FluFullMetapopParamsTensors(FluTravelParamsTensors):
     vax_induced_inf_risk_reduce: Optional[torch.Tensor] = None
     vax_induced_hosp_risk_reduce: Optional[torch.Tensor] = None
     vax_induced_death_risk_reduce: Optional[torch.Tensor] = None
+    vax_protection_delay_days: Optional[torch.Tensor] = 0
+    vax_immunity_reset_date_mm_dd: Optional[str] = None
 
     R_to_S_rate: Optional[torch.Tensor] = None
     E_to_I_rate: Optional[torch.Tensor] = None

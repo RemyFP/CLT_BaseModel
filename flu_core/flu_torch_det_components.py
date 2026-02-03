@@ -359,6 +359,26 @@ def compute_MV_change(state: FluFullMetapopStateTensors,
 
     return MV_change * dt
 
+def check_and_apply_MV_reset(state: FluFullMetapopStateTensors,
+                             params: FluFullMetapopParamsTensors,
+                             day_counter: int):
+    """
+    Check if current date matches vax_immunity_reset_date_mm_dd
+    where vaccine-induced immunity should be reset.
+    If so, reset MV to zero.
+    """
+    
+    if params.vax_immunity_reset_date_mm_dd is not None:
+        current_date = params.start_real_date + datetime.timedelta(days=day_counter)
+        
+        # Parse reset date (format: "MM_DD")
+        month, day = params.vax_immunity_reset_date_mm_dd.split('_')
+
+        # Check if current date matches the reset date (month and day)
+        if current_date.month == int(month) and current_date.day == int(day):
+            # Reset vaccine-induced immunity to zero
+            state.MV = np.zeros_like(state.MV)
+            print(f"VaxInducedImmunity MV reset to 0 on {current_date}")
 
 def update_state_with_schedules(state: FluFullMetapopStateTensors,
                                 params: FluFullMetapopParamsTensors,
@@ -382,6 +402,8 @@ def update_state_with_schedules(state: FluFullMetapopStateTensors,
     absolute_humidity = schedules.absolute_humidity[day_counter]
     daily_vaccines = schedules.daily_vaccines[day_counter]
     mobility_modifier = schedules.mobility_modifier[day_counter]
+    
+    check_and_apply_MV_reset(state, params, day_counter)
 
     state_new = FluFullMetapopStateTensors(
         S=state.S,

@@ -108,6 +108,7 @@ rfc3987-syntax==1.1.0
 rpds-py==0.29.0
 scipy==1.16.3
 sciris==3.2.4
+seaborn==0.13.2
 Send2Trash==1.8.3
 six==1.17.0
 smmap==5.0.2

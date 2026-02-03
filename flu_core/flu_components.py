@@ -457,9 +457,76 @@ class VaxInducedImmunity(clt.EpiMetric):
     population-level immunity.
     """
 
-    def __init__(self, init_val):
-        super().__init__(init_val)
-
+    def __init__(self, 
+                 init_val,
+                 current_real_date: datetime.date,
+                 params: FluSubpopParams,
+                 schedules: clt.Schedule,
+                 timesteps_per_day: int):
+        
+        adjusted_init_val = self.adjust_initial_value(
+            init_val, current_real_date, params, schedules, timesteps_per_day)
+        super().__init__(adjusted_init_val)
+        
+        
+    def adjust_initial_value(self,
+                             init_val: np.ndarray,
+                             current_real_date: datetime.date,
+                             params: FluSubpopParams,
+                             schedules: clt.Schedule,
+                             timesteps_per_day: int):
+        """
+        Adjusts initial value of vaccine-induced immunity based on
+        vaccination schedule if the parameter vax_immunity_reset_date_mm_dd
+        is not None.
+        Vaccines administered before the reset date are not counted, but
+        vaccines administered after the reset date (and before the simulation
+        start date, accounting for protection delay) are counted with waning.
+        """
+        
+        self.original_init_val = copy.deepcopy(init_val)
+        self.adjusted_init_val = copy.deepcopy(init_val)
+        
+        if params.vax_immunity_reset_date_mm_dd is not None:
+            # Print warning to mention that initial value is being adjusted
+            msg = 'Vaccine immunity reset date is set as ' +\
+                f'{params.vax_immunity_reset_date_mm_dd.replace("_", "/")}. \n' +\
+                'Initial vaccine-induced immunity value is being adjusted ' +\
+                'by resetting immunity to 0 at that date, and by taking into ' +\
+                'account vaccines administered after this date, and before simulation start date.'
+            warnings.warn(msg)
+            
+            # Parse reset date (format: "MM_DD")
+            month, day = params.vax_immunity_reset_date_mm_dd.split('_')
+            current_year = current_real_date.year
+            
+            # Find most recent occurrence of reset date before start_date
+            reset_date = datetime.date(current_year, int(month), int(day))
+            if reset_date >= current_real_date:
+                # If reset date is after start, use previous year
+                reset_date = datetime.date(current_year - 1, int(month), int(day))
+            
+            # Filter vaccines between reset_date and start date,
+            # accounting for protection delay
+            vaccines_df = schedules['daily_vaccines'].timeseries_df.copy()
+            
+            mask = (vaccines_df['date'] >= (reset_date + datetime.timedelta(days=params.vax_protection_delay_days))) &\
+                (vaccines_df['date'] < current_real_date)
+            relevant_vaccines = vaccines_df[mask]
+            
+            # Initialize MV adjustment
+            MV_adjustment = np.zeros_like(vaccines_df['daily_vaccines'].iloc[0])
+            
+            # Process each day's vaccines, applying waning
+            for _, row in relevant_vaccines.iterrows():
+                for i in range(timesteps_per_day):
+                    MV_adjustment += row["daily_vaccines"] / timesteps_per_day - \
+                        params.vax_induced_immune_wane * MV_adjustment / timesteps_per_day
+            
+            self.adjusted_init_val = self.adjusted_init_val + MV_adjustment
+            
+        return self.adjusted_init_val
+            
     def get_change_in_current_val(self,
                                   state: FluSubpopState,
                                   params: FluSubpopParams,
@@ -472,9 +539,31 @@ class VaxInducedImmunity(clt.EpiMetric):
         # Note: `state.daily_vaccines` (based on the value of the `DailyVaccines`
         #   `Schedule` is NOT divided by the number of timesteps -- so we need to
         #   do this division in the equation here.
-
+        
         return state.daily_vaccines / (num_timesteps) - \
                params.vax_induced_immune_wane * state.MV / num_timesteps
+
+    def check_and_apply_reset(self, 
+                              current_date: datetime.date, 
+                              params: FluSubpopParams):
+        """
+        Check if current date matches vax_immunity_reset_date_mm_dd.
+        If so, reset MV to zero.
+
+        Args:
+            current_date: The current simulation date
+            params: FluSubpopParams containing vax_immunity_reset_date_mm_dd
+        """
+        
+        if params.vax_immunity_reset_date_mm_dd is not None:
+            # Parse reset date (format: "MM_DD")
+            month, day = params.vax_immunity_reset_date_mm_dd.split('_')
+
+            # Check if current date matches the reset date (month and day)
+            if current_date.month == int(month) and current_date.day == int(day):
+                # Reset vaccine-induced immunity to zero
+                self.current_val = np.zeros_like(self.current_val)
+                print(f"VaxInducedImmunity reset to 0 on {current_date}")
 
 
 class BetaReduce(clt.DynamicVal):
@@ -882,6 +971,8 @@ class FluSubpopModel(clt.SubpopModel):
         # (redundant) because the parent class `SubpopModel`'s `__init__`
         # creates deep copies.
         super().__init__(state, params, simulation_settings, RNG, name)
+        
+        self.params = clt.updated_dataclass(self.params, {"start_real_date": self.start_real_date})
 
     def check_humidity_input(self) -> None:
         """
@@ -1064,7 +1155,23 @@ class FluSubpopModel(clt.SubpopModel):
         self.check_contact_matrix_input()
         self.check_rate_input()
         self.check_initial_compartment_input()
-    
+
+    def prepare_daily_state(self) -> None:
+        """
+        Override parent method to add vaccine immunity reset check.
+        At beginning of each day, update schedules, dynamic values,
+        and check for vaccine immunity reset.
+        """
+        # Call parent implementation first to update schedules and dynamic vals
+        super().prepare_daily_state()
+
+        # Check and potentially reset vaccine-induced immunity
+        if hasattr(self.epi_metrics, 'MV'):
+            self.epi_metrics.MV.check_and_apply_reset(
+                self.current_real_date,
+                self.params
+            )
+
     def create_compartments(self) -> sc.objdict[str, clt.Compartment]:
 
         # Create `Compartment` instances S-E-IA-IP-IS-H-R-D (7 compartments total)
@@ -1202,7 +1309,11 @@ class FluSubpopModel(clt.SubpopModel):
                                self.transition_variables.R_to_S)
 
         epi_metrics.MV = \
-            VaxInducedImmunity(getattr(self.state, "MV"))
+            VaxInducedImmunity(getattr(self.state, "MV"),
+                               self.current_real_date,
+                               self.params,
+                               self.schedules,
+                               self.simulation_settings.timesteps_per_day)
 
         return epi_metrics
 
@@ -1512,6 +1623,7 @@ class FluMetapopModel(clt.MetapopModel, ABC):
         for field in fields(target):
 
             name = field.name
+            is_non_numerical = False
 
             metapop_vals = []
 
@@ -1519,15 +1631,26 @@ class FluMetapopModel(clt.MetapopModel, ABC):
                 setattr(target, name, torch.tensor(getattr(self.mixing_params, name)))
 
             else:
+
                 for model in subpop_models_ordered.values():
                     metapop_vals.append(getattr(model.params, name))
-
+                
                 # If all values are equal to each other, then
                 #   simply store the first value (since its value is common
                 #   across metapopulations)
                 first_val = metapop_vals[0]
-                if all(np.allclose(x, first_val) for x in metapop_vals):
-                    metapop_vals = first_val
+                if isinstance(first_val, str) or isinstance(first_val, datetime.date):
+                    is_non_numerical = True
+                    if all(x == first_val for x in metapop_vals):
+                        metapop_vals = first_val
+                    else:
+                        raise FluMetapopModelError(
+                            f"Error: non-numerical parameter '{name}' has values that differ "
+                            "across subpopulations; values should be the same."
+                        )
+                else:
+                    if all(np.allclose(x, first_val) for x in metapop_vals):
+                        metapop_vals = first_val
 
                 # Converting list of arrays to tensors is slow --
                 #   better to convert to array first
@@ -1535,7 +1658,10 @@ class FluMetapopModel(clt.MetapopModel, ABC):
                     metapop_vals = np.asarray(metapop_vals)
                     # metapop_vals = np.stack([clt.to_AR_array(x, A, R) for x in metapop_vals])
 
-                setattr(target, name, torch.tensor(metapop_vals))
+                if is_non_numerical:
+                    setattr(target, name, metapop_vals)
+                else:
+                    setattr(target, name, torch.tensor(metapop_vals))
 
         # Convert all tensors to correct size!
         target.standardize_shapes()

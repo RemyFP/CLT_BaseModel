@@ -1,7 +1,7 @@
 {
 	"num_age_groups":5,
 	"num_risk_groups":1,
-	"beta_baseline": 0.05,
+	"beta_baseline": 0.031,
     "humidity_impact": 0.0119,
 	"inf_induced_saturation": 0.7,
 	"inf_induced_immune_wane": 0.01,
@@ -14,7 +14,7 @@
     "vax_induced_hosp_risk_reduce": [[0.63],[0.63],[0.51],[0.51],[0.57]],
 	"vax_induced_death_risk_reduce": 0.0,
 	"vax_protection_delay_days": 14,
-	"vax_immunity_reset_date_mm_dd": "08_01",
+	"vax_immunity_reset_date_mm_dd": "07_30",
     "R_to_S_rate": 0.02,
     "E_to_I_rate": 1.43,
     "IP_to_IS_rate": 1.11,

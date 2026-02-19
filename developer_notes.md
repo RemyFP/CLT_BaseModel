@@ -1,5 +1,11 @@
 # Journal
 
+## 2026 02 19
+- Updated the travel mixing exposure equations in `flu_travel_functions.py` to properly account for the proportion of individuals staying home in each location.
+- In `compute_local_to_local_exposure()`: `proportion_staying_home` is now applied to both sides of the contact matrix multiplication — scaling both the susceptible pool and the infectious pool present in the local location. Previously it was only applied to the susceptible side.
+- In `compute_outside_visitors_exposure()`: added the susceptible scaling  `proportion_staying_home` of the *local* (destination) location. 
+- In `compute_residents_traveling_exposure()`: the infectious pool at the destination is now correctly computed by aggregating over all subpopulations present at the destination (residents staying home + travelers from other locations) via a vectorized `einsum`. Previously only the local-to-local infectious individuals at the destination were considered, undercounting the infectious pool.
+
 ## 2026 01 29
 - Added vaccine immunity reset functionality to model seasonal vaccine immunity patterns. A new parameter `vax_immunity_reset_date_mm_dd` is added to `FluSubpopParams` in `flu_data_structures.py`. When set (format: "MM_DD", e.g., "08_01" for August 1st), the vaccine-induced immunity (MV) resets to zero on this date each year to represent the start of a new vaccine season.
 - Added `start_real_date` parameter to `FluSubpopParams` in `flu_data_structures.py` to track the real-world date corresponding to the simulation start, enabling date-based reset functionality.

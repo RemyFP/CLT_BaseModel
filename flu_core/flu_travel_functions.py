@@ -141,17 +141,28 @@ def compute_local_to_local_exposure(flu_contact_matrix: torch.Tensor,
     # if this changes, we have to change the implementation.
     # The risk dimension does not have unique values, so we just
     # grab the first element of the risk dimension.
-    mobility_modifier = mobility_modifier[location_ix, :, 0]
+    proportion_staying_home = np.maximum(
+        0, 
+        (1 - mobility_modifier[location_ix, :, 0] * sum_residents_nonlocal_travel_prop[location_ix])
+        )
 
-    result = np.maximum(0, (1 - mobility_modifier * sum_residents_nonlocal_travel_prop[location_ix])) * \
-             torch.matmul(flu_contact_matrix[location_ix, :, :],
-                          wtd_infectious_ratio_LLA[location_ix, location_ix, :])
+    result = torch.mul(
+        proportion_staying_home,
+        torch.matmul(
+            flu_contact_matrix[location_ix, :, :],
+            torch.mul(
+                proportion_staying_home, 
+                wtd_infectious_ratio_LLA[location_ix, location_ix, :]
+                )
+            )
+        )
 
     return result
 
 
 def compute_outside_visitors_exposure(flu_contact_matrix: torch.Tensor,
                                       mobility_modifier: torch.Tensor,
+                                      sum_residents_nonlocal_travel_prop: torch.Tensor,
                                       travel_proportions: torch.Tensor,
                                       wtd_infectious_ratio_LLA: torch.Tensor,
                                       local_ix: int,
@@ -170,17 +181,25 @@ def compute_outside_visitors_exposure(flu_contact_matrix: torch.Tensor,
     #   `visitors_ix` who come to `local_ix` (and infect folks in `local_ix`)
 
     # See WARNING in `compute_local_to_local_exposure()`
-    mobility_modifier = mobility_modifier[visitors_ix, :, 0]
-
-    result = travel_proportions[visitors_ix, local_ix] * \
-             torch.matmul(mobility_modifier * flu_contact_matrix[local_ix, :, :],
-                          wtd_infectious_ratio_LLA[visitors_ix, local_ix, :])
+    proportion_staying_home = np.maximum(
+        0,
+        (1 - mobility_modifier[local_ix, :, 0] * sum_residents_nonlocal_travel_prop[local_ix])
+        )
+    
+    result = torch.mul(
+        proportion_staying_home * travel_proportions[visitors_ix, local_ix], \
+        torch.matmul(
+            mobility_modifier[visitors_ix, :, 0] * flu_contact_matrix[local_ix, :, :],
+            wtd_infectious_ratio_LLA[visitors_ix, local_ix, :]
+            )
+        )
 
     return result
 
 
 def compute_residents_traveling_exposure(flu_contact_matrix: torch.Tensor,
                                          mobility_modifier: torch.Tensor,
+                                         sum_residents_nonlocal_travel_prop: torch.Tensor,
                                          travel_proportions: torch.Tensor,
                                          wtd_infectious_ratio_LLA: torch.Tensor,
                                          local_ix: int,
@@ -196,11 +215,25 @@ def compute_residents_traveling_exposure(flu_contact_matrix: torch.Tensor,
     """
 
     # See WARNING in `compute_local_to_local_exposure()`
-    mobility_modifier = mobility_modifier[local_ix, :, 0]
+    proportion_staying_home_at_dest = np.maximum(
+        0,
+        (1 - mobility_modifier[dest_ix, :, 0] * sum_residents_nonlocal_travel_prop[dest_ix])
+        )
 
-    result = mobility_modifier * travel_proportions[local_ix, dest_ix] * \
-             torch.matmul(flu_contact_matrix[local_ix, :, :],
-                          wtd_infectious_ratio_LLA[dest_ix, dest_ix, :])
+    # Vectorized version:
+    # For k != dest_ix: infectious_proportion[k, a'] = mobility_modifier[k, a'] * travel_proportions[k, dest]
+    # For k == dest_ix: infectious_proportion[k, a'] = proportion_staying_home_at_dest[a']
+    # Then the sum collapses to: einsum("ka,ka->a", Q[:, dest, :], infectious_proportion)
+    infectious_proportion = mobility_modifier[:, :, 0] * travel_proportions[:, dest_ix].unsqueeze(1)
+    infectious_proportion[dest_ix, :] = proportion_staying_home_at_dest
+
+    result = torch.mul(
+        mobility_modifier[local_ix, :, 0] * travel_proportions[local_ix, dest_ix],
+        torch.matmul(
+            flu_contact_matrix[dest_ix, :, :],
+            torch.einsum("ka,ka->a", wtd_infectious_ratio_LLA[:, dest_ix, :], infectious_proportion)
+            )
+        )
 
     return result
 
@@ -258,6 +291,7 @@ def compute_total_mixing_exposure(state: FluTravelStateTensors,
                                         compute_outside_visitors_exposure(
                                             flu_contact_matrix,
                                             mobility_modifier,
+                                            sum_residents_nonlocal_travel_prop,
                                             travel_proportions,
                                             wtd_infectious_ratio_LLA,
                                             l,
@@ -267,6 +301,7 @@ def compute_total_mixing_exposure(state: FluTravelStateTensors,
                                         compute_residents_traveling_exposure(
                                             flu_contact_matrix,
                                             mobility_modifier,
+                                            sum_residents_nonlocal_travel_prop,
                                             travel_proportions,
                                             wtd_infectious_ratio_LLA,
                                             l,

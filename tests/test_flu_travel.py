@@ -95,6 +95,7 @@ def test_size_travel_computations(make_flu_subpop_model):
             for j in range(L):
                 assert flu.compute_outside_visitors_exposure(state.flu_contact_matrix,
                                                              state.mobility_modifier,
+                                                             precomputed.sum_residents_nonlocal_travel_prop,
                                                              params.travel_proportions,
                                                              wtd_infectious_ratio_LLA,
                                                              i,
@@ -102,6 +103,7 @@ def test_size_travel_computations(make_flu_subpop_model):
 
                 assert flu.compute_residents_traveling_exposure(state.flu_contact_matrix,
                                                                 state.mobility_modifier,
+                                                                precomputed.sum_residents_nonlocal_travel_prop,
                                                                 params.travel_proportions,
                                                                 wtd_infectious_ratio_LLA,
                                                                 i,

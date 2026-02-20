@@ -1780,7 +1780,7 @@ class FluMetapopModel(clt.MetapopModel, ABC):
                 if subpop_model.schedules[schedule_name].is_day_of_week_schedule:
                     df = create_timeseries_df_from_day_of_week_schedule(
                         df, start_date)
-                # TODO check what this looks like
+                
                 df["simulation_day"] = (pd.to_datetime(df.index, format="%Y-%m-%d") - start_date).to_series().dt.days.values
                 df = df[df["simulation_day"] >= 0]
 

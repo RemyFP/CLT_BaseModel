@@ -1,6 +1,12 @@
 # Journal
 
 ## 2026 02 19
+- Pre-indexed schedule DataFrames by date (or day-of-week) in all 4 schedule classes in `flu_components.py` to eliminate O(n) boolean scans during `prepare_daily_state`. Changes:
+  - `DailyVaccines`, `MobilityModifier`, `AbsoluteHumidity`, `FluContactMatrix`: added/updated `postprocess_data_input()` to call `set_index('date')` (or `set_index('day_of_week')` for the day-of-week mobility variant) at the end of setup, after all other DataFrame processing is complete.
+  - All four `update_current_val()` methods updated to use `.loc[current_date]` instead of `df[df["date"] == current_date]`.
+  - `FluContactMatrix.update_current_val()`: `except IndexError` changed to `except KeyError` to match `.loc` semantics.
+  - `MV.adjust_initial_value()`: mask updated to use `vaccines_df.index` instead of `vaccines_df['date']` since `date` is now the DataFrame index.
+  - Profiling result: `prepare_daily_state` cumtime dropped from 0.256s (33%) to 0.082s (13%); total simulation time 0.78s → 0.627s (−20%).
 - Updated the travel mixing exposure equations in `flu_travel_functions.py` to properly account for the proportion of individuals staying home in each location.
 - In `compute_local_to_local_exposure()`: `proportion_staying_home` is now applied to both sides of the contact matrix multiplication — scaling both the susceptible pool and the infectious pool present in the local location. Previously it was only applied to the susceptible side.
 - In `compute_outside_visitors_exposure()`: added the susceptible scaling  `proportion_staying_home` of the *local* (destination) location. 

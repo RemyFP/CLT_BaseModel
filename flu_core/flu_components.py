@@ -509,9 +509,9 @@ class VaxInducedImmunity(clt.EpiMetric):
             # Filter vaccines between reset_date and start date,
             # accounting for protection delay
             vaccines_df = schedules['daily_vaccines'].timeseries_df.copy()
-            
-            mask = (vaccines_df['date'] >= (reset_date + datetime.timedelta(days=params.vax_protection_delay_days))) &\
-                (vaccines_df['date'] < current_real_date)
+
+            mask = (vaccines_df.index >= (reset_date + datetime.timedelta(days=params.vax_protection_delay_days))) &\
+                (vaccines_df.index < current_real_date)
             relevant_vaccines = vaccines_df[mask]
             
             # Initialize MV adjustment
@@ -621,8 +621,7 @@ class DailyVaccines(clt.Schedule):
         self.vax_protection_delay_days = vax_protection_delay_days
 
     def update_current_val(self, params, current_date: datetime.date) -> None:
-        self.current_val = self.timeseries_df.loc[
-            self.timeseries_df["date"] == current_date, "daily_vaccines"].values[0]
+        self.current_val = self.timeseries_df.loc[current_date, "daily_vaccines"]
 
     def postprocess_data_input(self) -> None:
         """
@@ -632,6 +631,7 @@ class DailyVaccines(clt.Schedule):
             Shifts dates forward by vax_protection_delay_days
             to model delayed vaccine protection, backfilling
             the beginning with zero entries.
+            Pre-indexes the DataFrame by date for O(1) lookups.
         """
 
         self.timeseries_df['daily_vaccines'] = \
@@ -665,6 +665,8 @@ class DailyVaccines(clt.Schedule):
             # Concatenate and sort by date
             self.timeseries_df = pd.concat([backfill_df, self.timeseries_df], ignore_index=True)
             self.timeseries_df = self.timeseries_df.sort_values('date').reset_index(drop=True)
+
+        self.timeseries_df = self.timeseries_df.set_index('date')
 
 
 class MobilityModifier(clt.Schedule):
@@ -709,12 +711,10 @@ class MobilityModifier(clt.Schedule):
     def update_current_val(self, params, current_date: datetime.date) -> None:
         if self.is_day_of_week_schedule:
             current_day_of_week = current_date.strftime('%A').lower()
-            self.current_val = self.timeseries_df.loc[
-                self.timeseries_df["day_of_week"] == current_day_of_week, "mobility_modifier"].values[0]
+            self.current_val = self.timeseries_df.loc[current_day_of_week, "mobility_modifier"]
         else:
-            self.current_val = self.timeseries_df.loc[
-                self.timeseries_df["date"] == current_date, "mobility_modifier"].values[0]
-            
+            self.current_val = self.timeseries_df.loc[current_date, "mobility_modifier"]
+
     def postprocess_data_input(self) -> None:
         """
             Converts mobility_modifier column from
@@ -722,8 +722,9 @@ class MobilityModifier(clt.Schedule):
             (each day) of format AxR into np.ndarray.
             Check whether day_of_week schedule is being used.
             Make days of week lower case if being used.
+            Pre-indexes the DataFrame by date or day_of_week for O(1) lookups.
         """
-        
+
         if 'day_of_week' in self.timeseries_df.columns:
             self.is_day_of_week_schedule = True
 
@@ -733,10 +734,13 @@ class MobilityModifier(clt.Schedule):
             self.timeseries_df['mobility_modifier'].apply(
                 lambda x: np.asarray(x)
                 )
-        
+
         if self.is_day_of_week_schedule:
             self.timeseries_df['day_of_week'] = \
                 self.timeseries_df['day_of_week'].str.lower()
+            self.timeseries_df = self.timeseries_df.set_index('day_of_week')
+        else:
+            self.timeseries_df = self.timeseries_df.set_index('date')
 
 
 class AbsoluteHumidity(clt.Schedule):
@@ -762,8 +766,10 @@ class AbsoluteHumidity(clt.Schedule):
         self.timeseries_df = timeseries_df
 
     def update_current_val(self, params, current_date: datetime.date) -> None:
-        self.current_val = self.timeseries_df.loc[
-            self.timeseries_df["date"] == current_date, "absolute_humidity"].values[0]
+        self.current_val = self.timeseries_df.loc[current_date, "absolute_humidity"]
+
+    def postprocess_data_input(self) -> None:
+        self.timeseries_df = self.timeseries_df.set_index('date')
 
 
 class FluContactMatrix(clt.Schedule):
@@ -795,16 +801,17 @@ class FluContactMatrix(clt.Schedule):
                            subpop_params: FluSubpopParams,
                            current_date: datetime.date) -> None:
 
-        df = self.timeseries_df
-
         try:
-            current_row = df[df["date"] == current_date].iloc[0]
+            current_row = self.timeseries_df.loc[current_date]
             self.current_val = subpop_params.total_contact_matrix - \
                                (1 - current_row["is_school_day"]) * subpop_params.school_contact_matrix - \
                                (1 - current_row["is_work_day"]) * subpop_params.work_contact_matrix
-        except IndexError:
+        except KeyError:
             # print(f"Error: {current_date} is not in `timeseries_df`. Using total contact matrix.")
             self.current_val = subpop_params.total_contact_matrix
+
+    def postprocess_data_input(self) -> None:
+        self.timeseries_df = self.timeseries_df.set_index('date')
 
 
 def compute_wtd_presymp_asymp_by_age(subpop_state: FluSubpopState,
@@ -885,6 +892,8 @@ def create_timeseries_df_from_day_of_week_schedule(
         df, df_day_of_week, 
         on='day_of_week', how='left'
         ).drop(columns=['day_of_week'])
+    
+    df = df.set_index('date')
     
     return df
 
@@ -999,7 +1008,7 @@ class FluSubpopModel(clt.SubpopModel):
             raise FluSubpopModelError("Error: vaccination values must be non-negative.")
         
         ## Check cumulative vaccination never exceeds 100% over 365 days
-        df_vaccine['datetime'] = pd.to_datetime(df_vaccine['date'])
+        df_vaccine['datetime'] = pd.to_datetime(df_vaccine.index)
         df_vaccine.set_index('datetime', inplace=True)
 
         # Ensure there is one row per day within time range
@@ -1771,8 +1780,8 @@ class FluMetapopModel(clt.MetapopModel, ABC):
                 if subpop_model.schedules[schedule_name].is_day_of_week_schedule:
                     df = create_timeseries_df_from_day_of_week_schedule(
                         df, start_date)
-
-                df["simulation_day"] = (pd.to_datetime(df["date"], format="%Y-%m-%d") - start_date).dt.days
+                # TODO check what this looks like
+                df["simulation_day"] = (pd.to_datetime(df.index, format="%Y-%m-%d") - start_date).to_series().dt.days.values
                 df = df[df["simulation_day"] >= 0]
 
                 # Make each day's value an A x R array

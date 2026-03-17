@@ -1,5 +1,48 @@
 # Journal
 
+## 2026 03 17
+
+### Outcomes module (`flu_core/flu_outcomes.py`, new file)
+
+Added a computation and plotting library for epidemiological outcomes post-simulation.
+
+**Computation functions** — all accept optional `subpop_name`, `age_group`, and `risk_group` arguments (passing `None` aggregates over that dimension):
+- `daily_hospital_admissions`: daily ISH→HR + ISH→HD transition flows, aggregated to daily totals.
+- `daily_new_infections`: daily S→E transition flows.
+- `cumulative_hospitalizations`, `cumulative_deaths`: season-total scalars.
+- `attack_rate`: cumulative infections / initial susceptible population.
+- `vaccine_preventable_events(baseline, counterfactual, metric_fn)`: difference in a scalar metric between two scenarios.
+- `summarize_outcomes(values, credible_interval)`: mean, median, and central CI across replicates.
+
+**Plotting functions**:
+- `plot_compartment_history`: time series of selected compartments, with optional age/risk filtering and multi-scenario overlay via `linestyle`/`label_suffix`.
+- `plot_epi_metrics`: M and MV over time, averaged across subpopulations.
+- `plot_daily_new_infections`: daily S→E curve, single model.
+- `plot_daily_hospital_admissions`: accepts a single model or a `{scenario: model}` / `{scenario: [list of models]}` dict; multi-replicate input produces a median line + shaded 95 % CI ribbon.
+- `plot_attack_rate_by_age`: bar chart of attack rate per age group.
+- `plot_scenario_comparison`: bar chart (single-run) or box plot (multi-replicate) of any scalar metric across scenarios.
+
+All functions that consume transition-variable histories require those variables to be listed in `SimulationSettings.transition_variables_to_save` before the simulation runs; a clear `ValueError` is raised if history is missing.
+
+Exported from `flu_core/__init__.py` via `from .flu_outcomes import *`.
+
+### Bug fix: vaccine cumulative-check date lookup (`flu_core/flu_components.py`)
+
+Fixed `FluSubpopModel._check_vaccination_input()`: `exceeds_first_date` now reads from `df_vaccine.index[...]` instead of `df_vaccine['date'].values[...]`, consistent with the pre-indexed schedule DataFrames introduced in the 2026-02-19 update.
+
+### Input file update (`flu_instances/austin_input_files_2024_2025/common_subpop_params.json`)
+
+Updated `beta_baseline` from 0.031 → 0.042 for the 2024–2025 Austin instance.
+
+### Docstring example in `ScenarioRunner` (`clt_toolkit/scenario_runner.py`)
+
+Added a `"higher_beta"` example scenario (using `"params"` key with per-subpop `beta_baseline` overrides) to the module docstring to illustrate parameter-only scenario definitions alongside schedule-based ones.
+
+### New example scripts (`flu_instances/examples/`)
+
+- `scenario_and_outcomes_demo.py`: end-to-end demo combining `ScenarioRunner` (multi-replicate, SQL-backed) with `flu_outcomes` (in-memory, single-replicate re-runs for plotting). Illustrates the two-step pattern: run `ScenarioRunner` for statistics, then re-run each scenario once with `transition_variables_to_save` set to get histories for `flu_outcomes`.
+- `flu_sensitivity.py` and `vaccination_scenario_analysis.py`: additional analysis scripts (sensitivity sweeps and vaccination scenario comparisons).
+
 ## 2026 03 13
 
 ### Scenario configuration infrastructure (`clt_toolkit/`)

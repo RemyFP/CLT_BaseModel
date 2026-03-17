@@ -1041,7 +1041,7 @@ class FluSubpopModel(clt.SubpopModel):
             first_exceeds_idx = max_values_above_one.index(True)
             
             vaccines_cml_exceeds = vaccines_rolling_sum[first_exceeds_idx]
-            exceeds_first_date = df_vaccine['date'].values[first_exceeds_idx + window_size_days - 1]
+            exceeds_first_date = df_vaccine.index[first_exceeds_idx + window_size_days - 1]
             
             msg = 'Cumulative vaccination over a 365-day period exceeds 100% on (at least) ' +\
                 f'the following date: {exceeds_first_date}. Cumulative vaccination by that date is \n' +\

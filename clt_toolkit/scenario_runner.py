@@ -26,6 +26,12 @@ Typical use
                 "schedules": {"daily_vaccines": vax_20_df}
                 "subpop_schedules": {'subpop_1': {"daily_vaccines": vax_20_df}},
                 },
+            "higher_beta":        {
+                "params": {
+                    "subpop_1": {"beta_baseline": 0.05},
+                    "subpop_2": {"beta_baseline": 0.055},
+                    }
+                },
         },
         num_reps=100,
         simulation_end_day=200,

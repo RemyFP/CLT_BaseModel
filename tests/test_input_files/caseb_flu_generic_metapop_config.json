@@ -1,0 +1,275 @@
+{
+    "compartments": ["S", "E", "IP", "ISR", "ISH", "IA", "HR", "HD", "R", "D"],
+
+    "params": {
+        "beta_baseline":                 1,
+        "humidity_impact":               0.0,
+        "inf_induced_saturation":        0.7,
+        "inf_induced_immune_wane":       0.0002,
+        "vax_induced_saturation":        0.2,
+        "vax_induced_immune_wane":       0.004,
+        "inf_induced_inf_risk_reduce":   0.8,
+        "inf_induced_hosp_risk_reduce":  0.8,
+        "inf_induced_death_risk_reduce": 0.8,
+        "vax_induced_inf_risk_reduce":   0.68,
+        "vax_induced_hosp_risk_reduce":  0.68,
+        "vax_induced_death_risk_reduce": 0.68,
+        "vax_protection_delay_days":     14,
+        "vax_immunity_reset_date_mm_dd": "08_01",
+        "R_to_S_rate":                   0.5,
+        "E_to_I_rate":                   0.5,
+        "IP_to_IS_rate":                 0.5,
+        "ISH_to_H_rate":                 0.5,
+        "ISR_to_R_rate":                 0.5,
+        "IA_to_R_rate":                  0.5,
+        "HR_to_R_rate":                  0.5,
+        "HD_to_D_rate":                  0.5,
+        "E_to_IA_prop":                  0.5,
+        "ISH_to_HD_prop":                0.05,
+        "IP_to_ISH_prop":                0.01,
+        "IP_relative_inf":               0.5,
+        "IA_relative_inf":               0.5,
+        "relative_suscept": [
+            [1.0],
+            [1.0],
+            [1.0],
+            [1.0],
+            [1.0]
+        ],
+        "total_contact_matrix": [
+            [3.2, 2.5, 1.0, 0.5, 0.3],
+            [2.5, 6.0, 2.0, 1.0, 0.5],
+            [1.0, 2.0, 5.0, 2.5, 1.5],
+            [0.5, 1.0, 2.5, 4.0, 2.0],
+            [0.3, 0.5, 1.5, 2.0, 3.0]
+        ],
+        "school_contact_matrix": [
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0]
+        ],
+        "work_contact_matrix": [
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0]
+        ]
+    },
+
+    "transitions": [
+        {
+            "name":          "R_to_S",
+            "origin":        "R",
+            "destination":   "S",
+            "rate_template": "constant_param",
+            "rate_config":   {"param": "R_to_S_rate"}
+        },
+        {
+            "name":          "S_to_E",
+            "origin":        "S",
+            "destination":   "E",
+            "rate_template": "force_of_infection_travel",
+            "rate_config": {
+                "beta_param":            "beta_baseline",
+                "humidity_impact_param": "humidity_impact",
+                "humidity_schedule":     "absolute_humidity",
+                "inf_reduce_param":      "inf_induced_inf_risk_reduce",
+                "vax_reduce_param":      "vax_induced_inf_risk_reduce",
+                "travel_config": {
+                    "infectious_compartments": {
+                        "ISR": null,
+                        "ISH": null,
+                        "IP":  "IP_relative_inf",
+                        "IA":  "IA_relative_inf"
+                    },
+                    "immobile_compartments":        ["HR", "HD"],
+                    "relative_susceptibility_param": "relative_suscept",
+                    "contact_matrix_schedule":       "flu_contact_matrix",
+                    "mobility_schedule":             "mobility_modifier"
+                }
+            }
+        },
+        {
+            "name":                    "E_to_IA",
+            "origin":                  "E",
+            "destination":             "IA",
+            "rate_template":           "param_product",
+            "rate_config":             {"factors": ["E_to_I_rate", "E_to_IA_prop"]},
+            "jointly_distributed_with": "E_to_IP"
+        },
+        {
+            "name":                    "E_to_IP",
+            "origin":                  "E",
+            "destination":             "IP",
+            "rate_template":           "param_product",
+            "rate_config":             {"factors": ["E_to_I_rate"], "complement_factors": ["E_to_IA_prop"]},
+            "jointly_distributed_with": "E_to_IA"
+        },
+        {
+            "name":                    "IP_to_ISR",
+            "origin":                  "IP",
+            "destination":             "ISR",
+            "rate_template":           "immunity_modulated",
+            "rate_config": {
+                "base_rate":        "IP_to_IS_rate",
+                "proportion":       "IP_to_ISH_prop",
+                "is_complement":    true,
+                "inf_reduce_param": "inf_induced_hosp_risk_reduce",
+                "vax_reduce_param": "vax_induced_hosp_risk_reduce"
+            },
+            "jointly_distributed_with": "IP_to_ISH"
+        },
+        {
+            "name":                    "IP_to_ISH",
+            "origin":                  "IP",
+            "destination":             "ISH",
+            "rate_template":           "immunity_modulated",
+            "rate_config": {
+                "base_rate":        "IP_to_IS_rate",
+                "proportion":       "IP_to_ISH_prop",
+                "is_complement":    false,
+                "inf_reduce_param": "inf_induced_hosp_risk_reduce",
+                "vax_reduce_param": "vax_induced_hosp_risk_reduce"
+            },
+            "jointly_distributed_with": "IP_to_ISR"
+        },
+        {
+            "name":          "ISR_to_R",
+            "origin":        "ISR",
+            "destination":   "R",
+            "rate_template": "constant_param",
+            "rate_config":   {"param": "ISR_to_R_rate"}
+        },
+        {
+            "name":                    "ISH_to_HR",
+            "origin":                  "ISH",
+            "destination":             "HR",
+            "rate_template":           "immunity_modulated",
+            "rate_config": {
+                "base_rate":        "ISH_to_H_rate",
+                "proportion":       "ISH_to_HD_prop",
+                "is_complement":    true,
+                "inf_reduce_param": "inf_induced_death_risk_reduce",
+                "vax_reduce_param": "vax_induced_death_risk_reduce"
+            },
+            "jointly_distributed_with": "ISH_to_HD"
+        },
+        {
+            "name":                    "ISH_to_HD",
+            "origin":                  "ISH",
+            "destination":             "HD",
+            "rate_template":           "immunity_modulated",
+            "rate_config": {
+                "base_rate":        "ISH_to_H_rate",
+                "proportion":       "ISH_to_HD_prop",
+                "is_complement":    false,
+                "inf_reduce_param": "inf_induced_death_risk_reduce",
+                "vax_reduce_param": "vax_induced_death_risk_reduce"
+            },
+            "jointly_distributed_with": "ISH_to_HR"
+        },
+        {
+            "name":          "IA_to_R",
+            "origin":        "IA",
+            "destination":   "R",
+            "rate_template": "constant_param",
+            "rate_config":   {"param": "IA_to_R_rate"}
+        },
+        {
+            "name":          "HR_to_R",
+            "origin":        "HR",
+            "destination":   "R",
+            "rate_template": "constant_param",
+            "rate_config":   {"param": "HR_to_R_rate"}
+        },
+        {
+            "name":          "HD_to_D",
+            "origin":        "HD",
+            "destination":   "D",
+            "rate_template": "constant_param",
+            "rate_config":   {"param": "HD_to_D_rate"}
+        }
+    ],
+
+    "transition_groups": [
+        {
+            "name":            "E_out",
+            "transition_type": "binom_deterministic",
+            "members":         ["E_to_IP", "E_to_IA"]
+        },
+        {
+            "name":            "IP_out",
+            "transition_type": "binom_deterministic",
+            "members":         ["IP_to_ISR", "IP_to_ISH"]
+        },
+        {
+            "name":            "ISH_out",
+            "transition_type": "binom_deterministic",
+            "members":         ["ISH_to_HR", "ISH_to_HD"]
+        }
+    ],
+
+    "epi_metrics": [
+        {
+            "name":            "M",
+            "init_val":        [[0.0], [0.0], [0.0], [0.0], [0.0]],
+            "metric_template": "infection_induced_immunity",
+            "update_config": {
+                "r_to_s_transition":             "R_to_S",
+                "inf_induced_saturation_param":  "inf_induced_saturation",
+                "vax_induced_saturation_param":  "vax_induced_saturation",
+                "inf_induced_immune_wane_param":  "inf_induced_immune_wane"
+            }
+        },
+        {
+            "name":            "MV",
+            "init_val":        [[0.0], [0.0], [0.0], [0.0], [0.0]],
+            "metric_template": "vaccine_induced_immunity",
+            "update_config": {
+                "daily_vaccines_schedule":             "daily_vaccines",
+                "vax_induced_immune_wane_param":       "vax_induced_immune_wane",
+                "vax_immunity_reset_date_mm_dd_param": "vax_immunity_reset_date_mm_dd",
+                "vax_protection_delay_days_param":     "vax_protection_delay_days"
+            }
+        }
+    ],
+
+    "schedules": [
+        {
+            "name":              "absolute_humidity",
+            "schedule_template": "timeseries_lookup",
+            "schedule_config": {
+                "df_attribute": "absolute_humidity",
+                "value_column": "absolute_humidity"
+            }
+        },
+        {
+            "name":              "flu_contact_matrix",
+            "schedule_template": "contact_matrix",
+            "schedule_config": {
+                "school_work_day_df_attribute":  "flu_contact_matrix",
+                "total_contact_matrix_param":    "total_contact_matrix",
+                "school_contact_matrix_param":   "school_contact_matrix",
+                "work_contact_matrix_param":     "work_contact_matrix"
+            }
+        },
+        {
+            "name":              "daily_vaccines",
+            "schedule_template": "vaccine_schedule",
+            "schedule_config": {
+                "df_attribute":                   "daily_vaccines",
+                "vax_protection_delay_days_param": "vax_protection_delay_days"
+            }
+        },
+        {
+            "name":              "mobility_modifier",
+            "schedule_template": "mobility",
+            "schedule_config": {
+                "df_attribute": "mobility_modifier"
+            }
+        }
+    ]
+}

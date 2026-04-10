@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(wc -l /Users/rfp437/Work/CityLevelTransmission/CLT_BaseModel/flu_core/flu_*.py)",
-      "Bash(grep -n \"make_dataclass_from_dict\\\\|updated_dataclass\" /Users/rfp437/Work/CityLevelTransmission/CLT_BaseModel/clt_toolkit/*.py)"
+      "Bash(grep -n \"make_dataclass_from_dict\\\\|updated_dataclass\" /Users/rfp437/Work/CityLevelTransmission/CLT_BaseModel/clt_toolkit/*.py)",
+      "Bash(grep -v \"^$\\\\|Warning\\\\|UserWarning\\\\|warn\")",
+      "Bash(grep \"freq_dependent_infection\" /Users/rfp437/Work/CityLevelTransmission/CLT_BaseModel/generic_core/*.py)",
+      "Bash(ls -la /Users/rfp437/Work/CityLevelTransmission/CLT_BaseModel/tests/test_generic*.py)"
     ]
   }
 }

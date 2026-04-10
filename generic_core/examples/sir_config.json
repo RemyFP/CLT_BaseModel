@@ -1,0 +1,31 @@
+{
+    "compartments": ["S", "I", "R"],
+
+    "params": {
+        "beta":  0.3,
+        "gamma": 0.1
+    },
+
+    "transitions": [
+        {
+            "name":          "S_to_I",
+            "origin":        "S",
+            "destination":   "I",
+            "rate_template": "constant_param",
+            "rate_config":   {"param": "beta"}
+        },
+        {
+            "name":          "I_to_R",
+            "origin":        "I",
+            "destination":   "R",
+            "rate_template": "constant_param",
+            "rate_config":   {"param": "gamma"}
+        }
+    ],
+
+    "transition_groups": [],
+
+    "epi_metrics": [],
+
+    "schedules": []
+}

@@ -34,8 +34,13 @@ generic_core/
 │                               generic_torch_simulate_calibration_target
 │
 ├── calibration.py           ← Generic accept-reject calibration interface
-└── outcomes.py              ← Generic outcome utilities (transition/compartment
-                                name-based, not hardcoded)
+├── outcomes.py              ← Generic outcome utilities (transition/compartment
+│                               name-based, not hardcoded)
+│
+└── examples/
+    ├── sir_config.json          ← Minimal SIR config
+    ├── sir_demo.py              ← Script-based SIR demo
+    └── model_builder_notebook.py ← Interactive no-code marimo model builder
 ```
 
 ### Relationship to existing code
@@ -197,6 +202,13 @@ class GenericTravelTensors:
 ### 5. Config Parser and Validation
 
 **File**: `config_parser.py`
+
+Two entry points:
+- `parse_model_config(json_path, ...)` — loads from a JSON file
+- `parse_model_config_from_dict(config_dict, ...)` — parses an already-loaded
+  Python dict; useful for notebook UIs that build the config programmatically
+
+Both delegate to the same internal validation logic.
 
 All validation happens at construction time before any simulation objects are
 created. Errors are raised with clear messages pointing to the offending config key.
@@ -361,7 +373,7 @@ Analogous to `flu_core/flu_outcomes.py` but no hardcoded transition/compartment 
 
 ```python
 def daily_transition_sum(history: dict, transition_names: list[str]) -> np.ndarray: ...
-def cumulative_compartment(history: dict, compartment_name: str) -> np.ndarray: ...
+def compartment_timeseries(history: dict, compartment_name: str) -> np.ndarray: ...
 def attack_rate(history: dict, infection_transition: str,
                 initial_susceptible: np.ndarray) -> np.ndarray: ...
 def summarize_outcomes(outcomes_list: list[np.ndarray]) -> dict: ...

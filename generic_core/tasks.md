@@ -14,25 +14,25 @@ implementations.
 
 ### Tasks
 
-- [ ] **1.1** Create `generic_core/rate_templates.py`
+- [x] **1.1** Create `generic_core/rate_templates.py`
   - Define `RateTemplate` ABC with `validate_config()`, `numpy_rate()`, `torch_rate()`
   - Define module-level `RATE_TEMPLATE_REGISTRY: dict[str, RateTemplate]`
   - Define `register_rate_template(name, instance)` helper
 
-- [ ] **1.2** Implement `ConstantParamRate`
+- [x] **1.2** Implement `ConstantParamRate`
   - `numpy_rate`: `np.full((A, R), params.params[name])`
   - `torch_rate`: `params_dict[name].expand(L, A, R)` (or `(A, R)` for single-pop)
   - Reference: `RecoveredToSusceptible`, `SympRecoverToRecovered`, `AsympToRecovered`,
     `HospRecoverToRecovered`, `HospDeadToDead` in
     `flu_core/flu_components.py:134–404`
 
-- [ ] **1.3** Implement `ParamProductRate`
+- [x] **1.3** Implement `ParamProductRate`
   - `rate_config`: `{"factors": ["E_to_I_rate"], "complement_factors": ["E_to_IA_prop"]}`
     → `rate = prod(params[f]) * prod(1 - params[c])`
   - Handles `ExposedToAsymp` and `ExposedToPresymp` patterns
   - Reference: `flu_components.py:152–194`
 
-- [ ] **1.4** Implement `ImmunityModulatedRate`
+- [x] **1.4** Implement `ImmunityModulatedRate`
   - `rate_config`: `{base_rate, proportion, is_complement, inf_reduce_param, vax_reduce_param}`
   - Computes `immunity_force = 1 + (r/(1-r)) * M + (r/(1-r)) * MV`
   - `is_complement=True` → `rate = base_rate * (1 - prop / immunity_force)`
@@ -43,7 +43,7 @@ implementations.
     `SympHospitalToHospRecover`, `SympHospitalToHospDead` in
     `flu_components.py:197–346`
 
-- [ ] **1.5** Implement `ForceOfInfectionRate` (single-population)
+- [x] **1.5** Implement `ForceOfInfectionRate` (single-population)
   - Reproduces the `else` branch of `SusceptibleToExposed.get_current_rate()`
     (`flu_components.py:119–131`)
   - `rate_config`: `{beta_param, humidity_param, contact_matrix_schedule,
@@ -53,13 +53,13 @@ implementations.
   - `torch_rate`: same ops with torch (matches `compute_S_to_E` in
     `flu_torch_det_components.py:102–136`)
 
-- [ ] **1.6** Implement `ForceOfInfectionTravelRate` (metapopulation)
+- [x] **1.6** Implement `ForceOfInfectionTravelRate` (metapopulation)
   - Reproduces the `if self.total_mixing_exposure is not None` branch
     (`flu_components.py:109–117`)
   - Calls `generic_core/travel_functions.compute_total_mixing_exposure` (Phase 3)
   - For now, can raise `NotImplementedError` — fully wired in Phase 3/4
 
-- [ ] **1.7** Write unit tests for Phase 1
+- [x] **1.7** Write unit tests for Phase 1
   - For each template: construct a minimal state/params from the Austin 2024-2025
     instance, call `numpy_rate()`, compare to `get_current_rate()` of the
     corresponding flu class (tolerance: machine epsilon for float64)
@@ -75,7 +75,7 @@ reproducing SIHR model trajectories.
 
 ### Tasks
 
-- [ ] **2.1** Create `generic_core/data_structures.py`
+- [x] **2.1** Create `generic_core/data_structures.py`
   - `GenericSubpopState(SubpopState)`: `compartments`, `epi_metrics`,
     `schedules`, `dynamic_vals` as dicts
   - `GenericSubpopParams(SubpopParams)`: `params` dict, `num_age_groups`,
@@ -86,7 +86,7 @@ reproducing SIHR model trajectories.
   - `GenericTravelTensors`: `compartment_tensors`, `schedule_tensors`,
     `param_tensors` as dicts (see `architecture.md §4`)
 
-- [ ] **2.2** Create `generic_core/metric_templates.py`
+- [x] **2.2** Create `generic_core/metric_templates.py`
   - `MetricTemplate` ABC with `validate_config()` and `build_metric()`
   - `InfectionInducedImmunityTemplate`: factory for a `EpiMetric` subclass that
     references the `R_to_S` transition variable by name — passes
@@ -97,7 +97,7 @@ reproducing SIHR model trajectories.
     `check_and_apply_reset()` logic from `VaxInducedImmunity`
     (`flu_components.py:454–566`)
 
-- [ ] **2.3** Create `generic_core/schedule_templates.py`
+- [x] **2.3** Create `generic_core/schedule_templates.py`
   - `ScheduleTemplate` ABC
   - `TimeseriesLookupSchedule`: wraps a DataFrame column, O(1) date lookup
   - `ContactMatrixSchedule`: reproduces `FluContactMatrix` logic
@@ -107,14 +107,14 @@ reproducing SIHR model trajectories.
   - `MobilityScheduleTemplate`: reproduces `MobilityModifier` date/day-of-week logic
     (`flu_components.py:672+`)
 
-- [ ] **2.4** Create `generic_core/config_parser.py`
+- [x] **2.4** Create `generic_core/config_parser.py`
   - `ModelConfig` dataclass (parsed/validated form of the JSON)
   - `parse_model_config(json_path, registry=None) -> ModelConfig`
   - Validation checks (see `architecture.md §5`)
   - Call each template's `validate_config()` with the available param/compartment
     names
 
-- [ ] **2.5** Create `generic_core/generic_model.py`
+- [x] **2.5** Create `generic_core/generic_model.py`
   - `ConfigDrivenTransitionVariable(clt.TransitionVariable)`:
     `get_current_rate()` delegates to `rate_template.numpy_rate()`
   - `ConfigDrivenEpiMetric(clt.EpiMetric)`: constructed via metric template factory
@@ -123,13 +123,13 @@ reproducing SIHR model trajectories.
   - `prepare_daily_state()`: calls `check_and_apply_reset()` on vaccine metric if
     present (analogous to `FluSubpopModel.prepare_daily_state()`)
 
-- [ ] **2.6** Write SIHR validation test
+- [x] **2.6** Write SIHR validation test
   - Create a JSON config that replicates `SIHR_core/`
   - Run `ConfigDrivenSubpopModel` and `SIHRSubpopModel` with the same initial
     conditions, same RNG seed, same transition type
   - Assert compartment trajectories are identical
 
-- [ ] **2.7** Write single-population flu validation test (no travel)
+- [x] **2.7** Write single-population flu validation test (no travel)
   - Create a JSON config for the full flu model
   - Run `ConfigDrivenSubpopModel` alongside `FluSubpopModel` using Austin data
   - Assert trajectories identical (deterministic transition type)
@@ -143,7 +143,7 @@ Travel results must be numerically identical to `flu_core/flu_travel_functions.p
 
 ### Tasks
 
-- [ ] **3.1** Create `generic_core/travel_functions.py`
+- [x] **3.1** Create `generic_core/travel_functions.py`
   - Port all functions from `flu_core/flu_travel_functions.py` with field-access
     changed to dict-lookup (see `architecture.md §7` for signature changes):
     - `compute_wtd_infectious_LA(compartment_tensors, param_tensors, infectious_config)`
@@ -157,13 +157,13 @@ Travel results must be numerically identical to `flu_core/flu_travel_functions.p
   - `travel_config` carries `infectious_compartments` dict and
     `immobile_compartments` list from the JSON config
 
-- [ ] **3.2** Wire `ForceOfInfectionTravelRate` (Phase 1.6)
+- [x] **3.2** Wire `ForceOfInfectionTravelRate` (Phase 1.6)
   - Replace `NotImplementedError` with a call to
     `generic_core/travel_functions.compute_total_mixing_exposure`
   - The travel config comes from `rate_config["travel_config"]` set at
     `ConfigDrivenSubpopModel` construction time
 
-- [ ] **3.3** Create `generic_core/generic_metapop.py`
+- [x] **3.3** Create `generic_core/generic_metapop.py`
   - `ConfigDrivenMetapopModel(clt.MetapopModel)` analogous to `FluMetapopModel`
     (`flu_components.py`)
   - `update_state_tensors()`: builds `GenericTravelTensors` from subpop states
@@ -174,7 +174,7 @@ Travel results must be numerically identical to `flu_core/flu_travel_functions.p
   - `compute_total_pop_LAR_tensor()`: sums initial populations across all
     compartments (model-structure-agnostic)
 
-- [ ] **3.4** Write travel validation test
+- [x] **3.4** Write travel validation test
   - Run `ConfigDrivenMetapopModel` on Austin 2-population data (deterministic)
   - Run `FluMetapopModel` on same data
   - Assert all compartment trajectories and hospital admit timeseries are identical
@@ -189,7 +189,7 @@ Deterministic path must be bit-identical to `flu_torch_det_components.py`.
 
 ### Tasks
 
-- [ ] **4.1** Create `generic_core/torch_generic.py` — state utilities
+- [x] **4.1** Create `generic_core/torch_generic.py` — state utilities
   - `build_state_dict_from_subpop(subpop_model, config) -> dict[str, torch.Tensor]`
     extracts compartment and metric tensors from a `ConfigDrivenMetapopModel`
   - `build_params_dict(params, config) -> dict[str, torch.Tensor]`
@@ -197,7 +197,7 @@ Deterministic path must be bit-identical to `flu_torch_det_components.py`.
     mirrors `update_state_with_schedules` in `flu_torch_det_components.py:383–427`
   - `check_and_apply_MV_reset(state_dict, params_dict, config, day_counter)`
 
-- [ ] **4.2** Implement `generic_advance_timestep()`
+- [x] **4.2** Implement `generic_advance_timestep()`
   - Signature: `(state_dict, params_dict, schedules_dict, model_config,
     rate_templates, precomputed, dt, save_calibration_targets, save_tvar_history)`
     → `(new_state_dict, calibration_targets, transition_vars)`
@@ -209,24 +209,24 @@ Deterministic path must be bit-identical to `flu_torch_det_components.py`.
   - Update each compartment: `softplus(val + sum(inflows) - sum(outflows))`
   - Update epi metrics: call metric template's `torch_update()` method
 
-- [ ] **4.3** Add `torch_update()` to metric templates
+- [x] **4.3** Add `torch_update()` to metric templates
   - `InfectionInducedImmunityTemplate.torch_update()`: mirrors
     `compute_M_change` in `flu_torch_det_components.py:328–345`
   - `VaccineInducedImmunityTemplate.torch_update()`: mirrors
     `compute_MV_change` in `flu_torch_det_components.py:348–360`
 
-- [ ] **4.4** Implement `generic_torch_simulate_full_history()`
+- [x] **4.4** Implement `generic_torch_simulate_full_history()`
   - Mirrors `torch_simulate_full_history` in `flu_torch_det_components.py:572–621`
   - Returns `(state_history_dict, tvar_history_dict)` keyed by compartment/
     transition name
 
-- [ ] **4.5** Implement `generic_torch_simulate_calibration_target()`
+- [x] **4.5** Implement `generic_torch_simulate_calibration_target()`
   - Mirrors `torch_simulate_hospital_admits` in
     `flu_torch_det_components.py:624–652`
   - Accepts `calibration_transition_names: list[str]` instead of hardcoding
     `ISH_to_HR + ISH_to_HD`
 
-- [ ] **4.6** Write torch validation tests
+- [x] **4.6** Write torch validation tests
   - **Deterministic path test**: run `generic_torch_simulate_full_history` and
     `torch_simulate_full_history` with Austin flu config; assert all compartment
     tensors are bit-identical
@@ -243,7 +243,7 @@ validation including a marimo notebook equivalent.
 
 ### Tasks
 
-- [ ] **5.1** Create `generic_core/calibration.py`
+- [x] **5.1** Create `generic_core/calibration.py`
   - `generic_accept_reject(model, sampling_RNG, sampling_info, target_timeseries,
     calibration_target_fn, num_days, target_accepted_reps, max_reps,
     early_stop_percent, target_rsquared)`
@@ -253,9 +253,9 @@ validation including a marimo notebook equivalent.
     (`flu_accept_reject.py:80+`)
   - Save accepted params and states to JSON (same format as existing)
 
-- [ ] **5.2** Create `generic_core/outcomes.py`
+- [x] **5.2** Create `generic_core/outcomes.py`
   - `daily_transition_sum(tvar_history, names)`: sum over named transitions per day
-  - `cumulative_compartment(state_history, name)`: running sum of compartment
+  - `compartment_timeseries(state_history, name)`: time series of compartment's current value
   - `attack_rate(tvar_history, infection_transition, initial_susceptible)`
   - `summarize_outcomes(outcomes_list)`: mean, median, 95% CI across replicates
   - These mirror `flu_core/flu_outcomes.py` but accept string names instead of
@@ -269,17 +269,51 @@ validation including a marimo notebook equivalent.
   - Run accept-reject calibration for 10 iterations; check it accepts/rejects
     correctly and saves JSON output
 
-- [ ] **5.4** Create `generic_core/__init__.py`
+- [x] **5.4** Create `generic_core/__init__.py`
   - Export: `ConfigDrivenSubpopModel`, `ConfigDrivenMetapopModel`,
     `parse_model_config`, `generic_accept_reject`, outcome utilities,
     `register_rate_template`, `register_metric_template`,
     `register_schedule_template`
 
-- [ ] **5.5** Write a minimal SIR example config + demo
+- [x] **5.5** Write a minimal SIR example config + demo
   - `generic_core/examples/sir_config.json`: 3 compartments, 2 transitions
     (both `constant_param`), no epi metrics, no schedules
   - Short script that loads config, runs simulation, plots S/I/R
   - This serves as the "minimal working example" for new users
+
+---
+
+## Phase 6 — Interactive Model Builder Notebook
+
+**Goal**: No-code marimo notebook for building, visualising, and running any
+`generic_core` model without writing JSON or Python by hand.
+
+### Tasks
+
+- [x] **6.1** Add `parse_model_config_from_dict()` to `config_parser.py`
+  - Refactored body of `parse_model_config()` — file I/O separated from parsing logic
+  - `parse_model_config()` now delegates to `parse_model_config_from_dict()`
+  - Exported from `generic_core/__init__.py`
+
+- [x] **6.2** Create `generic_core/examples/model_builder_notebook.py`
+  - **Step 1** — Compartment name entry (comma-separated text field)
+  - **Step 2** — Transition builder: origin/dest dropdowns, rate template selector
+    (`constant_param` and `param_product`), per-template config fields
+  - **Step 3** — Auto-discovered parameter inputs (one numeric field per referenced
+    param name)
+  - **Step 4** — Optional infection-induced immunity metric toggle
+  - **Step 5** — Model diagram via Graphviz (`dot` layout); matplotlib fallback
+  - **Step 6** — Initial condition inputs (total N + per-compartment seeds)
+  - **Step 7** — Simulation settings (days, deterministic/stochastic, replicates,
+    seed, timesteps per day)
+  - **Step 8** — Config preview (syntax-highlighted JSON) + download button
+  - **Step 9** — Run button → epidemic curves (median + 95 % CI ribbon for
+    stochastic) + peak summary table
+
+- [ ] **6.3** Verify notebook works end-to-end for:
+  - SIR model (output matches `sir_demo.py`)
+  - SEIR model (two-compartment split)
+  - Stochastic multi-replicate run
 
 ---
 

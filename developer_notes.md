@@ -1,5 +1,29 @@
 # Journal
 
+## 2026 04 10
+
+### New module: `generic_core/`
+
+Added a config-driven, model-agnostic simulation framework that reproduces the full flu model behavior through JSON configuration rather than hardcoded compartment names. See [generic_core/architecture.md](generic_core/architecture.md) for detailed design decisions; the high-level changes are:
+
+- **Template system** (`rate_templates.py`, `metric_templates.py`, `schedule_templates.py`): Five rate templates (`ConstantParamRate`, `ParamProductRate`, `ImmunityModulatedRate`, `ForceOfInfectionRate`, `ForceOfInfectionTravelRate`), two metric templates (infection- and vaccine-induced immunity), and four schedule templates (timeseries lookup, contact matrix, vaccine, mobility). All templates support both numpy and torch execution paths.
+
+- **Config parser** (`config_parser.py`): Loads and validates a JSON model config. Validates compartment/transition references, rate template names, and calls each template's own `validate_config()`. Two entry points: `parse_model_config(json_path)` and `parse_model_config_from_dict(dict)`.
+
+- **Generic model** (`generic_model.py`, `generic_metapop.py`): `ConfigDrivenSubpopModel` extends `clt.SubpopModel` and implements all factory methods by iterating over the validated config. `ConfigDrivenMetapopModel` wraps multiple subpopulations. Dict-based state containers (`GenericSubpopState`, `GenericSubpopParams`) replace typed dataclasses to support arbitrary compartment sets.
+
+- **Travel functions** (`travel_functions.py`): Config-driven reimplementation of `flu_travel_functions.py` — same math, compartment names passed as dicts instead of struct fields. Numerically identical to the flu implementation for flu-equivalent configs.
+
+- **Torch module** (`torch_generic.py`): Config-driven replacement for `flu_torch_det_components.py`. State is `dict[str, torch.Tensor]`. Implements `generic_advance_timestep()`, `generic_torch_simulate_full_history()`, and `generic_torch_simulate_calibration_target()`.
+
+- **Calibration and outcomes** (`calibration.py`, `outcomes.py`): Generalizations of `flu_accept_reject.py` and `flu_outcomes.py`. No hardcoded transition names — callers pass lists of transition names explicitly.
+
+- **Examples** (`examples/sir_config.json`, `sir_demo.py`, `model_builder_notebook.py`): A minimal SIR config + script demo, and a marimo-based interactive no-code model builder notebook.
+
+- **Tests** (`tests/test_generic_*.py`): Six test files covering rate templates, SIHR validation, single-pop flu validation, metapop travel, and torch deterministic paths. All validation tests assert numerical identity with existing flu and SIHR model outputs.
+
+All phases (1–6) of the implementation plan are complete, with the exception of end-to-end notebook verification (task 6.3).
+
 ## 2026 03 17
 
 ### Outcomes module (`flu_core/flu_outcomes.py`, new file)

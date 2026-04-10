@@ -1,0 +1,55 @@
+{
+    "compartments": ["S", "I", "H", "R"],
+
+    "params": {
+        "beta":        0.3,
+        "I_to_H_rate": 0.2,
+        "I_to_R_rate": 0.1,
+        "H_to_R_rate": 0.15,
+        "I_to_H_prop": [[0.3]]
+    },
+
+    "transitions": [
+        {
+            "name":          "S_to_I",
+            "origin":        "S",
+            "destination":   "I",
+            "rate_template": "freq_dependent_infection",
+            "rate_config":   {"beta_param": "beta", "infectious_compartment": "I"}
+        },
+        {
+            "name":                    "I_to_H",
+            "origin":                  "I",
+            "destination":             "H",
+            "rate_template":           "param_product",
+            "rate_config":             {"factors": ["I_to_H_rate", "I_to_H_prop"]},
+            "jointly_distributed_with": "I_to_R"
+        },
+        {
+            "name":                    "I_to_R",
+            "origin":                  "I",
+            "destination":             "R",
+            "rate_template":           "param_product",
+            "rate_config":             {"factors": ["I_to_R_rate"], "complement_factors": ["I_to_H_prop"]},
+            "jointly_distributed_with": "I_to_H"
+        },
+        {
+            "name":          "H_to_R",
+            "origin":        "H",
+            "destination":   "R",
+            "rate_template": "constant_param",
+            "rate_config":   {"param": "H_to_R_rate"}
+        }
+    ],
+
+    "transition_groups": [
+        {
+            "name":            "I_out",
+            "transition_type": "binom_deterministic",
+            "members":         ["I_to_H", "I_to_R"]
+        }
+    ],
+
+    "epi_metrics": [],
+    "schedules":   []
+}
